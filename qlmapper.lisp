@@ -21,7 +21,7 @@
 (defun flatlist (&rest args)
   (alexandria:flatten args))
 
-(defun run-sbcl (file &rest environment-pairs)
+(defun run-sbcl (&key file environment-pairs evals)
   (run-program (native-namestring (pathname *sbcl-program*))
                (flatlist "--noinform"
                          "--non-interactive"
@@ -34,7 +34,10 @@
                          (format nil  "(setf cl:*default-pathname-defaults* ~
                                        #p~S)"
                                  (native-namestring *default-pathname-defaults*))
-                         "--load" (native-namestring
+                         (mapcar (lambda (eval)
+                                   (list "--eval" eval))
+                                 evals)
+                        "--load" (native-namestring
                                    (truename file)))
                :environment (append (environment-list environment-pairs)
                                     (sb-ext:posix-environ))
@@ -48,7 +51,7 @@
     (base-directory (ql-dist:release system))))
 
 (defun map-objects (file
-                    &key dist-name function)
+                    &key dist-name function (filter 'identity) evals)
   (unless (probe-file file)
     (error "~S does not exist" file))
   (let ((dist (ql-dist:find-dist dist-name)))
@@ -56,26 +59,40 @@
       (error "~S does not name any known dist" dist-name))
     (let ((objects (funcall function dist)))
       (dolist (object objects)
-        (ql-dist:ensure-installed object)
-        (let ((*default-pathname-defaults*
-               (base-directory object)))
-          (run-sbcl file
-                    "*qlmapper-object-name*"
-                    (ql-dist:name object)))))))
+        (let ((name (ql-dist:name object)))
+          (when (funcall filter name)
+            (ql-dist:ensure-installed object)
+            (let ((*default-pathname-defaults*
+                   (base-directory object)))
+              (run-sbcl :file file
+                        :environment-pairs (list "*qlmapper-object-name*"
+                                                 name)
+                        :evals evals))))))))
 
-(defun map-releases (file &optional (dist-name "quicklisp"))
+(defun map-releases (file &key (dist-name "quicklisp") (filter 'identity))
   "For each release in a dist (defaults to the \"quicklisp\" dist),
   start an independent SBCL process and load FILE with the variable
   CL-USER:*QLMAPPER-OBJECT-NAME* bound to the release's name."
   (map-objects file
                :dist-name dist-name
-               :function #'ql-dist:provided-releases))
+               :function #'ql-dist:provided-releases
+               :filter filter))
 
-(defun map-systems (file &optional (dist-name "quicklisp"))
+(defun map-systems (file &key (dist-name "quicklisp") (filter 'identity))
   "For each system in a dist (defaults to the \"quicklisp\" dist),
   start an independent SBCL process and load FILE with the variable
   CL-USER:*QLMAPPER-OBJECT-NAME* bound to the system's name."
   (map-objects file
                :dist-name dist-name
-               :function #'ql-dist:provided-systems))
+               :function #'ql-dist:provided-systems
+               :filter filter))
 
+(defun map-loaded-systems (file &key (dist-name "quicklisp") (filter 'identity))
+  "For each system in a dist (defaults to the \"quicklisp\" dist),
+  start an independent SBCL process and load FILE with the variable
+  CL-USER:*QLMAPPER-OBJECT-NAME* bound to the system's name."
+  (map-objects file
+               :dist-name dist-name
+               :function #'ql-dist:provided-systems
+               :filter filter
+               :evals '("(ql:quickload cl-user:*qlmapper-object-name*)")))

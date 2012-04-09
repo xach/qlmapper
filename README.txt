@@ -42,6 +42,9 @@ Then the following will load the file for each system:
 MAP-RELEASES is like MAP-SYSTEMS except CL-USER:*QLMAPPER-OBJECT-NAME*
 is bound to the name of each release rather than each system.
 
+MAP-LOADED-SYSTEMS is like MAP-SYSTEMS but the system in question is
+loaded with ql:quickloaded before loading the mapped file.
+
 This could be used to determine which projects have license files,
 documentation subdirectories, readme files, etc.
 
