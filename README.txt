@@ -1,4 +1,4 @@
-qlmapper is a library for loading some code in a fresh SBCL
+qlmapper is an SBCL-only library for loading some code in a fresh SBCL
 environment for each system or release in Quicklisp.
 
 It is available from https://github.com/xach/qlmapper/
