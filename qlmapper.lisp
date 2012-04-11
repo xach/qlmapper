@@ -6,6 +6,10 @@
 
 (defvar *sbcl-program* sb-ext:*runtime-pathname*)
 
+(defvar *init-file* #. (merge-pathnames "qlmapper-init.lisp"
+                                        (or *load-truename*
+                                            *compile-file-truename*)))
+
 (defun native-truename (file)
   (native-namestring (truename file)))
 
@@ -39,6 +43,8 @@
                          (format nil  "(setf cl:*default-pathname-defaults* ~
                                        #p~S)"
                                  (native-truename *default-pathname-defaults*))
+                         "--load"
+                         (native-truename *init-file*)
                          (when pre-file
                            (list "--load" (native-truename pre-file)))
                          (mapcar (lambda (eval)
